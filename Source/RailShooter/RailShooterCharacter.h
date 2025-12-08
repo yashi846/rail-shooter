@@ -44,6 +44,9 @@ class ARailShooterCharacter : public ACharacter
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* LookAction;
 
+	UPROPERTY(EditAnywhere, Category = "RailShooter")
+	float RunSpeed = 600.f;
+
 public:
 	ARailShooterCharacter();
 	
@@ -65,6 +68,7 @@ protected:
 	virtual void BeginPlay();
 
 public:
+	virtual void Tick(float DeltaTime) override;
 	/** Returns CameraBoom subobject **/
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	/** Returns FollowCamera subobject **/

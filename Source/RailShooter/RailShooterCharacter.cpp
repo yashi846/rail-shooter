@@ -52,12 +52,21 @@ ARailShooterCharacter::ARailShooterCharacter()
 
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
+	GetCharacterMovement()->MaxWalkSpeed = RunSpeed;
+	
 }
 
 void ARailShooterCharacter::BeginPlay()
 {
 	// Call the base class  
 	Super::BeginPlay();
+}
+
+
+void ARailShooterCharacter::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+	AddMovementInput(GetActorForwardVector(), 1.0f);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -74,23 +83,23 @@ void ARailShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInp
 		}
 	}
 	
-	// Set up action bindings
-	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent)) {
-		
-		// Jumping
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
+	//// Set up action bindings
+	//if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent)) {
+	//	
+	//	// Jumping
+	//	EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
+	//	EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
 
-		// Moving
-		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ARailShooterCharacter::Move);
+	//	// Moving
+	//	EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ARailShooterCharacter::Move);
 
-		// Looking
-		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ARailShooterCharacter::Look);
-	}
-	else
-	{
-		UE_LOG(LogTemplateCharacter, Error, TEXT("'%s' Failed to find an Enhanced Input component! This template is built to use the Enhanced Input system. If you intend to use the legacy system, then you will need to update this C++ file."), *GetNameSafe(this));
-	}
+	//	// Looking
+	//	EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ARailShooterCharacter::Look);
+	//}
+	//else
+	//{
+	//	UE_LOG(LogTemplateCharacter, Error, TEXT("'%s' Failed to find an Enhanced Input component! This template is built to use the Enhanced Input system. If you intend to use the legacy system, then you will need to update this C++ file."), *GetNameSafe(this));
+	//}
 }
 
 void ARailShooterCharacter::Move(const FInputActionValue& Value)
