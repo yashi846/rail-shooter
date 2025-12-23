@@ -60,6 +60,7 @@ void ARailShooterCharacter::BeginPlay()
 {
 	// Call the base class  
 	Super::BeginPlay();
+
 }
 
 
@@ -67,6 +68,12 @@ void ARailShooterCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 	AddMovementInput(GetActorForwardVector(), 1.0f);
+
+	float TargetY = CurrentLaneIndex * LaneWidth;
+	FVector NewLocation = GetActorLocation();
+	NewLocation.Y = FMath::FInterpTo(NewLocation.Y, TargetY, DeltaTime, 10.0f);
+
+	SetActorLocation(NewLocation);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -84,22 +91,37 @@ void ARailShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInp
 	}
 	
 	//// Set up action bindings
-	//if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent)) {
-	//	
+	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent)) {
+	//
 	//	// Jumping
-	//	EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
-	//	EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
+	////	EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
+	////	EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
 
 	//	// Moving
-	//	EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ARailShooterCharacter::Move);
+	////	EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ARailShooterCharacter::Move);
 
 	//	// Looking
-	//	EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ARailShooterCharacter::Look);
-	//}
-	//else
-	//{
-	//	UE_LOG(LogTemplateCharacter, Error, TEXT("'%s' Failed to find an Enhanced Input component! This template is built to use the Enhanced Input system. If you intend to use the legacy system, then you will need to update this C++ file."), *GetNameSafe(this));
-	//}
+	////	EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ARailShooterCharacter::Look);
+
+		// Fire
+		if (FireAction)
+		{
+			//EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Started, this, &ARailShooterCharacter::OnFire);
+		}
+
+		// Move Lane
+		// ‰Ÿ‚µ‚Á‚Ï‚È‚µ‚Å˜A‘±ˆÚ“®‚³‚¹‚½‚¢ê‡‚Í Triggered 
+		if (MoveLaneAction)
+		{
+			EnhancedInputComponent->BindAction(MoveLaneAction, ETriggerEvent::Triggered, this, &ARailShooterCharacter::MoveLane);
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemplateCharacter, Error, TEXT("'%s' Failed to find an Enhanced Input component! This template is built to use the Enhanced Input system. If you intend to use the legacy system, then you will need to update this C++ file."), *GetNameSafe(this));
+	}
+
+	
 }
 
 void ARailShooterCharacter::Move(const FInputActionValue& Value)
@@ -136,4 +158,11 @@ void ARailShooterCharacter::Look(const FInputActionValue& Value)
 		AddControllerYawInput(LookAxisVector.X);
 		AddControllerPitchInput(LookAxisVector.Y);
 	}
+}
+
+void ARailShooterCharacter::MoveLane(const FInputActionValue& Value)
+{
+	float Input = Value.Get<float>();
+	int32 NewLaneIndex = FMath::Clamp(CurrentLaneIndex + (int32)Input, -1, 1);
+	CurrentLaneIndex = NewLaneIndex;
 }
