@@ -10,6 +10,8 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
+#include "DrawDebugHelpers.h"
+#include "Kismet/GameplayStatics.h"
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
@@ -52,12 +54,34 @@ ARailShooterCharacter::ARailShooterCharacter()
 
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
+	GetCharacterMovement()->MaxWalkSpeed = RunSpeed;
+	
 }
 
 void ARailShooterCharacter::BeginPlay()
 {
 	// Call the base class  
 	Super::BeginPlay();
+
+}
+
+
+void ARailShooterCharacter::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+	AddMovementInput(GetActorForwardVector(), 1.0f);
+
+	float TargetY = CurrentLaneIndex * LaneWidth;
+	FVector NewLocation = GetActorLocation();
+	NewLocation.Y = FMath::FInterpTo(NewLocation.Y, TargetY, DeltaTime, 10.0f);
+
+	SetActorLocation(NewLocation);
+
+	// デス判定
+	if (GetActorLocation().Z < -1000.0f)
+	{
+		UGameplayStatics::OpenLevel(this, FName(*GetWorld()->GetName()), false);
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -74,23 +98,38 @@ void ARailShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInp
 		}
 	}
 	
-	// Set up action bindings
+	//// Set up action bindings
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent)) {
-		
-		// Jumping
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
+	//
+	//	// Jumping
+	////	EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
+	////	EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
 
-		// Moving
-		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ARailShooterCharacter::Move);
+	//	// Moving
+	////	EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ARailShooterCharacter::Move);
 
 		// Looking
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ARailShooterCharacter::Look);
+
+		// Fire
+		if (FireAction)
+		{
+			EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Started, this, &ARailShooterCharacter::Fire);
+		}
+
+		// Move Lane
+		// 押しっぱなしで連続移動させたい場合は Triggered 
+		if (MoveLaneAction)
+		{
+			EnhancedInputComponent->BindAction(MoveLaneAction, ETriggerEvent::Triggered, this, &ARailShooterCharacter::MoveLane);
+		}
 	}
 	else
 	{
 		UE_LOG(LogTemplateCharacter, Error, TEXT("'%s' Failed to find an Enhanced Input component! This template is built to use the Enhanced Input system. If you intend to use the legacy system, then you will need to update this C++ file."), *GetNameSafe(this));
 	}
+
+	
 }
 
 void ARailShooterCharacter::Move(const FInputActionValue& Value)
@@ -126,5 +165,65 @@ void ARailShooterCharacter::Look(const FInputActionValue& Value)
 		// add yaw and pitch input to controller
 		AddControllerYawInput(LookAxisVector.X);
 		AddControllerPitchInput(LookAxisVector.Y);
+	}
+}
+
+void ARailShooterCharacter::MoveLane(const FInputActionValue& Value)
+{
+	float Input = Value.Get<float>();
+	int32 NewLaneIndex = FMath::Clamp(CurrentLaneIndex + (int32)Input, -1, 1);
+	CurrentLaneIndex = NewLaneIndex;
+}
+
+void ARailShooterCharacter::Fire(const FInputActionValue& Value)
+{
+	// -- カメラが何を見ているか --
+	FVector CameraStart = GetFollowCamera()->GetComponentLocation();
+	FVector CameraForward = GetFollowCamera()->GetForwardVector();
+	FVector CameraEnd = CameraStart + (CameraForward * 10000.0f); // 十分遠くまで
+
+	FHitResult CameraHit;
+	FCollisionQueryParams Params;
+	Params.AddIgnoredActor(this);
+
+	bool bCameraHit = GetWorld()->LineTraceSingleByChannel(
+		CameraHit,
+		CameraStart,
+		CameraEnd,
+		ECC_Visibility,
+		Params
+	);
+
+	// ターゲット地点の決定
+	FVector TargetLocation = bCameraHit ? CameraHit.ImpactPoint : CameraEnd;
+
+
+	// -- ターゲット地点に向けて打つ --
+
+	// ※将来的には GetMesh()->GetSocketLocation("Muzzle_01") などにするのがベスト
+	FVector MuzzleLocation = GetActorLocation() + FVector(0.0f, 0.0f, 40.0f);
+
+	// プレイーからターゲットへの正規化された方向ベクトル
+	FVector FireDirection = (TargetLocation - MuzzleLocation).GetSafeNormal();
+	FVector WeaponEnd = MuzzleLocation + (FireDirection * 5000.0f);
+
+	FHitResult WeaponHit;
+
+	bool bWeaponHit = GetWorld()->LineTraceSingleByChannel(
+		WeaponHit,
+		MuzzleLocation,
+		WeaponEnd,
+		ECC_Visibility,
+		Params
+	);
+
+	// デバッグ線（射撃線）を表示
+	DrawDebugLine(GetWorld(), MuzzleLocation, WeaponEnd, FColor::Red, false, 1.0f);
+
+	if (bWeaponHit)
+	{
+		UE_LOG(LogTemp, Log, TEXT("Hit: %s"), *WeaponHit.GetActor()->GetName());
+
+		// ここにスコア加算処理
 	}
 }
