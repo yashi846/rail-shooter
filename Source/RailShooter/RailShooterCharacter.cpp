@@ -11,6 +11,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
 #include "DrawDebugHelpers.h"
+#include "Kismet/GameplayStatics.h"
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
@@ -75,6 +76,12 @@ void ARailShooterCharacter::Tick(float DeltaTime)
 	NewLocation.Y = FMath::FInterpTo(NewLocation.Y, TargetY, DeltaTime, 10.0f);
 
 	SetActorLocation(NewLocation);
+
+	// ƒfƒX”»’è
+	if (GetActorLocation().Z < -1000.0f)
+	{
+		UGameplayStatics::OpenLevel(this, FName(*GetWorld()->GetName()), false);
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
