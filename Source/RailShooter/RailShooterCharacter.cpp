@@ -10,6 +10,7 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
+#include "DrawDebugHelpers.h"
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
@@ -100,13 +101,13 @@ void ARailShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInp
 	//	// Moving
 	////	EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ARailShooterCharacter::Move);
 
-	//	// Looking
-	////	EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ARailShooterCharacter::Look);
+		// Looking
+		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ARailShooterCharacter::Look);
 
 		// Fire
 		if (FireAction)
 		{
-			//EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Started, this, &ARailShooterCharacter::OnFire);
+			EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Started, this, &ARailShooterCharacter::Fire);
 		}
 
 		// Move Lane
@@ -165,4 +166,57 @@ void ARailShooterCharacter::MoveLane(const FInputActionValue& Value)
 	float Input = Value.Get<float>();
 	int32 NewLaneIndex = FMath::Clamp(CurrentLaneIndex + (int32)Input, -1, 1);
 	CurrentLaneIndex = NewLaneIndex;
+}
+
+void ARailShooterCharacter::Fire(const FInputActionValue& Value)
+{
+	// -- カメラが何を見ているか --
+	FVector CameraStart = GetFollowCamera()->GetComponentLocation();
+	FVector CameraForward = GetFollowCamera()->GetForwardVector();
+	FVector CameraEnd = CameraStart + (CameraForward * 10000.0f); // 十分遠くまで
+
+	FHitResult CameraHit;
+	FCollisionQueryParams Params;
+	Params.AddIgnoredActor(this);
+
+	bool bCameraHit = GetWorld()->LineTraceSingleByChannel(
+		CameraHit,
+		CameraStart,
+		CameraEnd,
+		ECC_Visibility,
+		Params
+	);
+
+	// ターゲット地点の決定
+	FVector TargetLocation = bCameraHit ? CameraHit.ImpactPoint : CameraEnd;
+
+
+	// -- ターゲット地点に向けて打つ --
+
+	// ※将来的には GetMesh()->GetSocketLocation("Muzzle_01") などにするのがベスト
+	FVector MuzzleLocation = GetActorLocation() + FVector(0.0f, 0.0f, 40.0f);
+
+	// プレイーからターゲットへの正規化された方向ベクトル
+	FVector FireDirection = (TargetLocation - MuzzleLocation).GetSafeNormal();
+	FVector WeaponEnd = MuzzleLocation + (FireDirection * 5000.0f);
+
+	FHitResult WeaponHit;
+
+	bool bWeaponHit = GetWorld()->LineTraceSingleByChannel(
+		WeaponHit,
+		MuzzleLocation,
+		WeaponEnd,
+		ECC_Visibility,
+		Params
+	);
+
+	// デバッグ線（射撃線）を表示
+	DrawDebugLine(GetWorld(), MuzzleLocation, WeaponEnd, FColor::Red, false, 1.0f);
+
+	if (bWeaponHit)
+	{
+		UE_LOG(LogTemp, Log, TEXT("Hit: %s"), *WeaponHit.GetActor()->GetName());
+
+		// ここにスコア加算処理
+	}
 }
